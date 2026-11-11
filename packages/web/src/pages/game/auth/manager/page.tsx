@@ -52,7 +52,7 @@ const BASE_TABS = [
   { id: "settings", label: "Settings" },
 ] as const
 
-const ADMIN_TAB = { id: "managers", label: "Managers" } as const
+const ADMIN_TAB = { id: "managers", label: "Quizmasters" } as const
 const ADMIN_SSO_TAB = { id: "sso", label: "SSO" } as const
 
 type ManagerTab =
@@ -101,7 +101,7 @@ const ManagerAuthPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { socket, clientId, isConnected } = useSocket()
-  const { reset, setGameId, setPlayers, setStatus } = useManagerStore()
+  const { reset, setGameId, setPlayers, setStatus, setInviteCode } = useManagerStore()
   const { setQuestionStates } = useQuestionStore()
 
   const [isAuth, setIsAuth] = useState(readManagerAuth)
@@ -113,6 +113,8 @@ const ManagerAuthPage = () => {
   const [settings, setSettings] = useState<ManagerSettings>({})
   const [editingQuizzId, setEditingQuizzId] = useState<string | null>(null)
   const [uploadedAudioUrl, setUploadedAudioUrl] = useState<string | null>(null)
+  const [uploadedMedia, setUploadedMedia] = useState<{ url: string; field: "image" | "video" | "audio" | "subtitle"; questionIndex: number; lang?: string } | null>(null)
+  const [mediaList, setMediaList] = useState<{ filename: string; url: string }[]>([])
   const [managers, setManagers] = useState<ManagerAccount[]>([])
   const [activeGame, setActiveGame] = useState<ActiveManagerGame | null>(null)
   const [oidcConfig, setOidcConfig] = useState<OidcConfig>(DEFAULT_OIDC_CONFIG)
@@ -263,8 +265,13 @@ const ManagerAuthPage = () => {
   })
 
   useEvent("manager:mediaUploaded", ({ url }) => {
-    setUploadedAudioUrl(url)
-    toast.success("Audio uploaded")
+    setUploadedMedia((current) => current ? { ...current, url } : null)
+    toast.success("Media uploaded")
+    setTimeout(() => setUploadedMedia(null), 500)
+  })
+
+  useEvent("manager:mediaList", (list: { filename: string; url: string }[]) => {
+    setMediaList(list)
   })
 
   useEvent("manager:historyExportReady", ({ filename, content }) => {
@@ -273,8 +280,9 @@ const ManagerAuthPage = () => {
 
   useEvent("manager:gameCreated", ({ gameId, inviteCode }) => {
     setGameId(gameId)
+    setInviteCode(inviteCode)
     setStatus(STATUS.SHOW_ROOM, { text: "Waiting for the players", inviteCode })
-    navigate(`/party/manager/${gameId}`)
+    navigate(`/party/quizmaster/${gameId}`)
   })
 
   useEvent(
@@ -284,7 +292,7 @@ const ManagerAuthPage = () => {
       setStatus(status.name, status.data)
       setPlayers(players)
       setQuestionStates(currentQuestion)
-      navigate(`/party/manager/${gameId}`)
+      navigate(`/party/quizmaster/${gameId}`)
       toast.success("Game control restored")
     },
   )
@@ -319,6 +327,12 @@ const ManagerAuthPage = () => {
   const handleDeleteQuizz = (quizzId: string) => {
     socket?.emit("manager:deleteQuizz", { quizzId })
   }
+  const handleTogglePublic = (quizzId: string, isPublic: boolean) => {
+    socket?.emit("manager:toggleQuizzPublic", { quizzId, isPublic })
+  }
+  const handleImportQuizz = (subject: string, quizz: Quizz) => {
+    socket?.emit("manager:importQuizz", { quizz: { ...quizz, subject } })
+  }
 
   const handleUpdateQuizz = (quizzId: string, quizz: Quizz) => {
     socket?.emit("manager:updateQuizz", { quizzId, quizz })
@@ -327,6 +341,7 @@ const ManagerAuthPage = () => {
   const handleEditQuizz = (quizzId: string) => {
     setActiveTab("quizzes")
     setEditingQuizzId(quizzId)
+      socket?.emit("manager:listMedia", {})
   }
 
   const handleSelectTab = (tab: ManagerTab) => {
@@ -349,6 +364,11 @@ const ManagerAuthPage = () => {
     socket?.emit("manager:uploadMedia", data)
   }
 
+    const handleUploadMedia = (data: { filename: string; content: string; field: "image" | "video" | "audio" | "subtitle"; questionIndex: number; lang?: string }) => {
+      setUploadedMedia({ url: "", field: data.field, questionIndex: data.questionIndex, lang: data.lang })
+      socket?.emit("manager:uploadMedia", { filename: data.filename, content: data.content })
+    }
+
   const handleDownloadHistory = (runId: string) => {
     socket?.emit("manager:downloadHistory", { runId })
   }
@@ -370,6 +390,14 @@ const ManagerAuthPage = () => {
   }) => {
     socket?.emit("manager:setManagerDisabled", data)
   }
+
+    const handleDeleteManager = (managerId: string) => {
+      socket?.emit("manager:deleteManager", { managerId })
+    }
+
+    const handleRenameManager = (data: { managerId: string; username: string }) => {
+      socket?.emit("manager:renameManager", data)
+    }
 
   const handleSaveOidcConfig = (config: OidcConfigInput) => {
     setOidcTestResult(null)
@@ -394,8 +422,7 @@ const ManagerAuthPage = () => {
     }
 
     if (activeGame.controlledByCurrentSession) {
-      navigate(`/party/manager/${activeGame.gameId}`)
-
+      socket?.emit("manager:reconnect", { gameId: activeGame.gameId })
       return
     }
 
@@ -422,7 +449,7 @@ const ManagerAuthPage = () => {
     reset()
     setQuestionStates(null)
     socket?.emit("manager:logout")
-    navigate("/manager")
+    navigate("/quizmaster")
   }
 
   useEffect(() => {
@@ -455,14 +482,14 @@ const ManagerAuthPage = () => {
 
     if (oidcResult === "error") {
       toast.error(params.get("message") ?? "SSO sign-in failed")
-      navigate(location.pathname || "/manager", { replace: true })
+      navigate(location.pathname || "/quizmaster", { replace: true })
 
       return
     }
 
     if (oidcResult === "success") {
       setPendingOidcCompletion(true)
-      navigate(location.pathname || "/manager", { replace: true })
+      navigate(location.pathname || "/quizmaster", { replace: true })
     }
   }, [location.pathname, location.search, navigate])
 
@@ -484,7 +511,7 @@ const ManagerAuthPage = () => {
 
     const params = new URLSearchParams({
       clientId,
-      returnTo: "/manager",
+      returnTo: "/quizmaster",
     })
 
     window.location.assign(`/auth/oidc/login?${params.toString()}`)
@@ -498,7 +525,7 @@ const ManagerAuthPage = () => {
     content = (
       <div className="relative z-10 flex min-h-dvh w-full flex-col items-center justify-center px-4 py-6">
         <img src={logo} className="mb-10 h-16" alt="MindBuzz logo" />
-        <div className="rounded-md bg-white px-6 py-4 text-sm text-gray-500 shadow-sm">
+        <div className="rounded-md bg-white px-6 py-4 text-sm text-Light-Slate shadow-sm">
           Loading manager panel...
         </div>
       </div>
@@ -526,7 +553,7 @@ const ManagerAuthPage = () => {
     content = (
       <div className="relative z-10 flex min-h-dvh w-full flex-col items-center justify-center px-4 py-6">
         <img src={logo} className="mb-10 h-16" alt="MindBuzz logo" />
-        <div className="rounded-md bg-white px-6 py-4 text-sm text-gray-500 shadow-sm">
+        <div className="rounded-md bg-white px-6 py-4 text-sm text-Light-Slate shadow-sm">
           Restoring manager session...
         </div>
       </div>
@@ -538,6 +565,9 @@ const ManagerAuthPage = () => {
           quizz={editingQuizz}
           onBack={() => setEditingQuizzId(null)}
           onSave={handleUpdateQuizz}
+            onUploadMedia={handleUploadMedia}
+            uploadedMedia={uploadedMedia}
+            mediaList={mediaList}
         />
       </div>
     )
@@ -559,6 +589,8 @@ const ManagerAuthPage = () => {
           onCreate={handleCreateManager}
           onResetPassword={handleResetManagerPassword}
           onSetDisabled={handleSetManagerDisabled}
+          onDelete={handleDeleteManager}
+          onRenameManager={handleRenameManager}
         />
       ) : activeTab === "sso" && manager?.role === "admin" ? (
         <SsoSettingsPanel
@@ -575,12 +607,31 @@ const ManagerAuthPage = () => {
           onDelete={handleDeleteQuizz}
           onEdit={handleEditQuizz}
           onSelect={handleCreate}
+          onImport={handleImportQuizz}
+          onExport={() => {}}
+          onTogglePublic={handleTogglePublic}
+          isAdmin={manager?.role === "admin"}
         />
       )
 
     content = (
       <div className="relative z-10 flex min-h-dvh flex-col items-center px-4 py-6">
-        <div className="mb-4 flex w-full max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-4 flex w-full max-w-5xl flex-col gap-3">
+          <div className="flex w-full items-center justify-between">
+            <img src={logo} className="h-8" alt="logo" />
+            <div className="flex items-center gap-3">
+              <p className="text-sm font-semibold text-white">
+                Signed in as {manager?.username}
+              </p>
+              <Button
+                type="button"
+                className="bg-white px-4 !text-black"
+                onClick={handleLogout}
+              >
+                Logout
+              </Button>
+            </div>
+          </div>
           <div className="flex flex-wrap gap-2">
             {tabs.map((tab) => (
               <Button
@@ -598,19 +649,6 @@ const ManagerAuthPage = () => {
               </Button>
             ))}
           </div>
-
-          <div className="flex flex-col items-start gap-2 sm:items-end">
-            <p className="text-sm font-semibold text-white">
-              Signed in as {manager?.username}
-            </p>
-            <Button
-              type="button"
-              className="bg-white px-4 !text-black"
-              onClick={handleLogout}
-            >
-              Logout
-            </Button>
-          </div>
         </div>
 
         {activeGame && (
@@ -623,9 +661,23 @@ const ManagerAuthPage = () => {
               </p>
             </div>
 
-            <Button className="px-4" onClick={handleResumeOrTakeOver} type="button">
-              {activeGame.controlledByCurrentSession ? "Resume game" : "Take over game"}
-            </Button>
+            <div className="flex gap-2">
+  <Button className="px-4" onClick={handleResumeOrTakeOver} type="button">
+    {activeGame.controlledByCurrentSession ? "Resume game" : "Take over game"}
+  </Button>
+  <Button
+    className="px-4 bg-Dark-Active-Red"
+    type="button"
+    onClick={() => {
+      if (window.confirm("Are you sure you want to stop the active game?")) {
+        socket?.emit("manager:stopGame", { gameId: activeGame.gameId })
+        setActiveGame(null)
+      }
+    }}
+  >
+    Stop game
+  </Button>
+</div>
           </div>
         )}
 

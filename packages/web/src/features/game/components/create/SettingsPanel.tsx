@@ -127,7 +127,7 @@ const SettingsPanel = ({
     <div className="z-10 flex w-full max-w-4xl flex-col gap-5 rounded-md bg-white p-4 shadow-sm md:p-6">
       <div>
         <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-Light-Slate">
           Question-level audio still overrides the global quiz audio.
         </p>
       </div>
@@ -135,7 +135,7 @@ const SettingsPanel = ({
       <section className="rounded-md bg-gray-50 p-4">
         <div className="mb-3">
           <h2 className="text-lg font-bold">Account password</h2>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-Light-Slate">
             Leave this blank if you do not want to change it.
           </p>
         </div>
@@ -152,7 +152,7 @@ const SettingsPanel = ({
       <section className="rounded-md bg-gray-50 p-4">
         <div className="mb-3">
           <h2 className="text-lg font-bold">Global quiz audio</h2>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-Light-Slate">
             This plays during answer selection when a question does not provide
             its own audio.
           </p>
@@ -199,7 +199,7 @@ const SettingsPanel = ({
               >
                 Upload selected file
               </Button>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-Light-Slate">
                 Files are stored in the sibling `media` folder.
               </span>
             </div>

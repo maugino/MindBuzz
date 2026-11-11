@@ -2,6 +2,7 @@ import type { CommonStatusDataMap } from "@mindbuzz/common/types/game/status"
 import CricleCheck from "@mindbuzz/web/features/game/components/icons/CricleCheck"
 import CricleXmark from "@mindbuzz/web/features/game/components/icons/CricleXmark"
 import { usePlayerStore } from "@mindbuzz/web/features/game/stores/player"
+import { t } from "@mindbuzz/web/features/game/utils/translations"
 import { SFX_RESULTS_SOUND } from "@mindbuzz/web/features/game/utils/constants"
 import { useEffect } from "react"
 import useSound from "use-sound"
@@ -13,14 +14,15 @@ type Props = {
 const Result = ({
   data: { correct, message, points, myPoints, rank, aheadOfMe },
 }: Props) => {
-  const player = usePlayerStore()
+  const { player, updatePoints } = usePlayerStore()
+  const lang = player?.quizLanguage
 
   const [sfxResults] = useSound(SFX_RESULTS_SOUND, {
     volume: 0.2,
   })
 
   useEffect(() => {
-    player.updatePoints(myPoints)
+    updatePoints(myPoints)
 
     sfxResults()
   }, [sfxResults])
@@ -36,7 +38,7 @@ const Result = ({
         {message}
       </h2>
       <p className="mt-1 text-lg font-bold text-white drop-shadow-lg sm:text-xl">
-        {`You are top ${rank}${aheadOfMe ? `, behind ${aheadOfMe}` : ""}`}
+        {`${t(lang, "youAreTop")} ${rank}${aheadOfMe ? `, ${t(lang, "behind")} ${aheadOfMe}` : ""}`}
       </p>
       {correct && (
         <span className="mt-2 rounded bg-black/40 px-4 py-2 text-xl font-bold text-white drop-shadow-lg sm:text-2xl">

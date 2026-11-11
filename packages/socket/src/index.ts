@@ -215,7 +215,7 @@ const httpServer = createServer((req, res) => {
 
 const io: Server = new ServerIO(httpServer, {
   path: "/ws",
-  maxHttpBufferSize: 25 * 1024 * 1024,
+  maxHttpBufferSize: 100 * 1024 * 1024,
 })
 
 Config.init()
@@ -476,6 +476,33 @@ io.on("connection", (socket) => {
       })
   })
 
+  socket.on("manager:deleteManager", ({ managerId }) => {
+    const manager = requireAdminManager(socket)
+    if (!manager) return
+    if (manager.id === managerId) {
+      socket.emit("manager:errorMessage", "You cannot delete your own account")
+      return
+    }
+    try {
+      AccountStore.deleteManager(managerId)
+      revokeManagerAccountAccess(managerId, "Your account has been deleted")
+      socket.emit("manager:managersList", AccountStore.listManagers())
+    } catch (error) {
+      socket.emit("manager:errorMessage", error instanceof Error ? error.message : "Failed to delete manager")
+    }
+  })
+
+  socket.on("manager:renameManager", ({ managerId, username }) => {
+    const manager = requireAdminManager(socket)
+    if (!manager) return
+    try {
+      AccountStore.renameManager(managerId, username)
+      socket.emit("manager:managersList", AccountStore.listManagers())
+    } catch (error) {
+      socket.emit("manager:errorMessage", error instanceof Error ? error.message : "Failed to rename manager")
+    }
+  })
+
   socket.on("manager:createManager", ({ username, password }) => {
     const manager = requireAdminManager(socket)
 
@@ -607,6 +634,23 @@ io.on("connection", (socket) => {
     }
   })
 
+  socket.on("manager:importQuizz", ({ quizz }) => {
+    const manager = requireAuthenticatedManager(socket)
+    if (!manager) {
+      return
+    }
+    try {
+      const created = AccountStore.createQuizz(manager.id, quizz.subject)
+      const updated = AccountStore.updateQuizz(manager.id, created.id, quizz)
+      socket.emit("manager:quizzCreated", updated)
+      socket.emit("manager:quizzList", AccountStore.listQuizzes(manager.id))
+    } catch (error) {
+      socket.emit(
+        "manager:errorMessage",
+        error instanceof Error ? error.message : "Failed to import quiz",
+      )
+    }
+  })
   socket.on("manager:updateQuizz", ({ quizzId, quizz }) => {
     const manager = requireAuthenticatedManager(socket)
 
@@ -634,7 +678,7 @@ io.on("connection", (socket) => {
     }
 
     try {
-      AccountStore.deleteQuizz(manager.id, quizzId)
+      manager.role === "admin" ? AccountStore.deleteQuizzAsAdmin(quizzId) : AccountStore.deleteQuizz(manager.id, quizzId)
       socket.emit("manager:quizzDeleted", quizzId)
       socket.emit("manager:quizzList", AccountStore.listQuizzes(manager.id))
     } catch (error) {
@@ -645,6 +689,21 @@ io.on("connection", (socket) => {
     }
   })
 
+  socket.on("manager:toggleQuizzPublic", ({ quizzId, isPublic }) => {
+    const manager = requireAuthenticatedManager(socket)
+    if (!manager) {
+      return
+    }
+    try {
+      AccountStore.toggleQuizzPublic(manager.id, quizzId, isPublic)
+      socket.emit("manager:quizzList", AccountStore.listQuizzes(manager.id))
+    } catch (error) {
+      socket.emit(
+        "manager:errorMessage",
+        error instanceof Error ? error.message : "Failed to update quiz visibility",
+      )
+    }
+  })
   socket.on("manager:updateSettings", (settings) => {
     const manager = requireAuthenticatedManager(socket)
 
@@ -661,6 +720,12 @@ io.on("connection", (socket) => {
         error instanceof Error ? error.message : "Failed to update settings",
       )
     }
+  })
+
+  socket.on("manager:listMedia", ({ type }: { type?: string } = {}) => {
+    const manager = requireAuthenticatedManager(socket)
+    if (!manager) return
+    socket.emit("manager:mediaList", Config.listMedia(type))
   })
 
   socket.on("manager:uploadMedia", ({ filename, content }) => {
@@ -717,8 +782,18 @@ io.on("connection", (socket) => {
 
       return
     }
-
     game.reconnect(socket)
+    socket.emit("manager:successReconnect", {
+      gameId: game.gameId,
+      currentQuestion: {
+        current: game.round.currentQuestion + 1,
+        total: game.quizz.questions.length,
+      },
+      status: game.managerStatus || game.lastBroadcastStatus || { name: "WAIT", data: { text: "Waiting for players" } },
+      players: game.players,
+      inviteCode: game.inviteCode,
+      language: game.quizz.language || "English",
+    })
   })
 
   socket.on("manager:takeOverGame", ({ gameId }) => {
@@ -742,15 +817,42 @@ io.on("connection", (socket) => {
       game.getActiveManagerGame(getSocketClientId(socket)),
     )
   })
+  socket.on("manager:stopGame", ({ gameId }) => {
+    const manager = requireAuthenticatedManager(socket)
+    if (!manager) {
+      return
+    }
+    const game = registry.getGameById(gameId)
+    if (!game || !game.isOwnedByManager(manager.id)) {
+      socket.emit("manager:errorMessage", "Game not found")
+      return
+    }
+    game.stopGame()
+    socket.emit("manager:activeGame", null)
+  })
 
   socket.on("player:reconnect", ({ gameId }) => {
-    const game = registry.getPlayerGame(gameId, socket.handshake.auth.clientId)
+    const clientId = socket.handshake.auth.clientId
+
+    console.log(
+      `Player reconnect requested: socketId=${socket.id}, clientId=${clientId}, gameId=${gameId}`,
+    )
+
+    const game = registry.getPlayerGame(gameId, clientId)
 
     if (game) {
+      console.log(
+        `Player reconnect game found: socketId=${socket.id}, clientId=${clientId}, gameId=${gameId}`,
+      )
+
       game.reconnect(socket)
 
       return
     }
+
+    console.log(
+      `Player reconnect FAILED: socketId=${socket.id}, clientId=${clientId}, gameId=${gameId}`,
+    )
 
     socket.emit("game:reset", "Game not found")
   })
@@ -772,11 +874,11 @@ io.on("connection", (socket) => {
       return
     }
 
-    socket.emit("game:successRoom", game.gameId)
+    socket.emit("game:successRoom", { gameId: game.gameId, language: game.quizz.language || "English" })
   })
 
   socket.on("player:login", ({ gameId, data }) =>
-    withGame(gameId, socket, (game) => game.join(socket, data.username)),
+    withGame(gameId, socket, (game) => game.join(socket, data.username, data.emoji)),
   )
 
   socket.on("manager:kickPlayer", ({ gameId, playerId }) =>
@@ -825,14 +927,8 @@ io.on("connection", (socket) => {
     if (managerGame) {
       managerGame.manager.connected = false
       registry.markGameAsEmpty(managerGame)
-
       if (!managerGame.started) {
-        console.log("Reset game (manager disconnected)")
-        managerGame.abortCooldown()
-        managerGame.clearPendingPlayerRemovals()
-        io.to(managerGame.gameId).emit("game:reset", "Manager disconnected")
-        registry.removeGame(managerGame.gameId)
-
+        console.log("Manager disconnected from waiting room, keeping game alive for reconnect")
         return
       }
     }

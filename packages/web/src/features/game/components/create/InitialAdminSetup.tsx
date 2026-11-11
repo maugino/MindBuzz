@@ -47,8 +47,8 @@ const InitialAdminSetup = ({ onSubmit }: Props) => {
   return (
     <Form>
       <div className="mb-2 text-center">
-        <h1 className="text-2xl font-bold">Set up MindBuzz</h1>
-        <p className="text-sm text-gray-500">
+        <h1 className="text-2xl font-bold">Set up Enovis Quiz</h1>
+        <p className="text-sm text-Light-Slate">
           Create the initial admin account for this installation.
         </p>
       </div>

@@ -12,7 +12,8 @@ import {
   SFX_ANSWERS_SOUND,
 } from "@mindbuzz/web/features/game/utils/constants"
 import clsx from "clsx"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { t } from "@mindbuzz/web/features/game/utils/translations"
 import { useParams } from "react-router"
 import useSound from "use-sound"
 
@@ -21,8 +22,13 @@ type Props = {
 }
 
 const Answers = ({
-  data: { question, answers, multipleCorrect, image, audio, video, time, totalPlayer },
+  data: { question, answers, multipleCorrect, image, audio, video, time, totalPlayer, subtitles, language },
 }: Props) => {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const setVideoRef = (el: HTMLVideoElement | null) => {
+    (videoRef as React.MutableRefObject<HTMLVideoElement | null>).current = el
+  }
   const { gameId }: { gameId?: string } = useParams()
   const { socket } = useSocket()
   const { player } = usePlayerStore()
@@ -67,6 +73,32 @@ const Answers = ({
     }
   }, [audio, playMusic, stopMusic, video])
 
+  useEffect(() => {
+    console.log("Subtitle effect:", { video: !!video, subtitles, language, videoRef: !!videoRef.current })
+    if (!videoRef.current || !subtitles || !language) return
+    const langMap: Record<string, string> = { English: "en", Italian: "it", French: "fr", Spanish: "es", German: "de" }
+    const targetLang = langMap[language] || "en"
+
+    const applySubtitles = () => {
+      const tracks = videoRef.current?.textTracks
+      if (!tracks) return
+      console.log("Applying subtitles, targetLang:", targetLang, "tracks:", tracks.length)
+      for (let i = 0; i < tracks.length; i++) {
+        console.log("Track:", tracks[i].language, tracks[i].mode)
+        tracks[i].mode = tracks[i].language === targetLang ? "showing" : "hidden"
+        console.log("Track after:", tracks[i].language, tracks[i].mode)
+      }
+    }
+
+    setTimeout(applySubtitles, 1000)
+
+    const videoEl = videoRef.current
+    videoEl.addEventListener("loadedmetadata", applySubtitles)
+    applySubtitles()
+
+    return () => videoEl.removeEventListener("loadedmetadata", applySubtitles)
+  }, [video, subtitles, language])
+
   useEvent("game:cooldown", (sec) => {
     setCooldown(sec)
   })
@@ -75,6 +107,33 @@ const Answers = ({
     setTotalAnswer(count)
     sfxPop()
   })
+
+  useEffect(() => {
+    if (video == null) return
+    const timer = setTimeout(() => {
+      if (iframeRef.current == null) return
+      const script = document.createElement("script")
+      script.src = "https://unpkg.com/@peertube/embed-api/build/player.min.js"
+      script.onload = () => {
+        const PeerTubePlayer = (window as any)["PeerTubePlayer"]
+        if (iframeRef.current == null) return
+        const player = new PeerTubePlayer(iframeRef.current)
+        player.ready.then(() => {
+          const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.code === "KeyE") {
+              player.setVolume(1)
+            }
+          }
+          window.addEventListener("keydown", handleKeyDown)
+        })
+      }
+      document.head.appendChild(script)
+    }, 500)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener("keydown", () => {})
+    }
+  }, [video])
 
   return (
     <div className="flex h-full flex-1 flex-col justify-between pb-3 sm:pb-4">
@@ -99,12 +158,34 @@ const Answers = ({
         )}
 
         {Boolean(video) && !player && (
-          <video
-            className="mb-2 aspect-video max-h-60 w-full max-w-3xl rounded-md sm:max-h-100"
-            src={video}
-            autoPlay
-            controls
-          />
+          video && (video.includes("sharepoint.com") || video.includes("youtube.com") || video.includes("youtu.be") || video.includes("vimeo.com") || video.includes("embed")) ? (
+            <iframe
+              className="mb-2 aspect-video max-h-60 w-full max-w-3xl rounded-md"
+              src={video && !video.includes("youtube.com") && !video.includes("youtu.be") && !video.includes("vimeo.com") && !video.includes("sharepoint.com") ? video + (video.includes("?") ? "&muted=1&api=1" : "?muted=1&api=1") : video}
+              frameBorder="0"
+              ref={iframeRef}
+              allowFullScreen
+              allow="autoplay; fullscreen"
+            />
+          ) : (
+            <video
+              className="mb-2 aspect-video max-h-60 w-full max-w-3xl rounded-md sm:max-h-100"
+              src={video ?? ""}
+              autoPlay
+              controls
+            >
+              {subtitles && Object.entries(subtitles).map(([lang, url]) => url ? (
+                <track
+                  key={lang}
+                  kind="subtitles"
+                  src={url}
+                  srcLang={lang}
+                  label={lang.toUpperCase()}
+                  default={language ? lang === ({ English: "en", Italian: "it", French: "fr", Spanish: "es", German: "de" } as Record<string,string>)[language] : lang === "en"}
+                />
+              ) : null)}
+            </video>
+          )
         )}
 
         {Boolean(image) && (

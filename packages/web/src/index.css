@@ -1,9 +1,17 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #ff9900;
-  --color-secondary: #1a140b;
+  --color-primary: #c8102e;
+  --color-secondary: #020A0A;
+  --color-Active Red: #C8102E;
+  --color-Graphite: #466473;
+  --color-Power-Gray: #A7A8AA;
+  --color-Dark-Active-Red: #640817;
+  --color-Medium-Active-Red: #960C22;
+  --color-Dark-Slate: #34414A;
+  --color-Light Slate: #6B838F;
 }
+
 
 button:not(:disabled),
 [role="button"]:not(:disabled) {

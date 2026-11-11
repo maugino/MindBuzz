@@ -85,7 +85,7 @@ const SsoSettingsPanel = ({
     <div className="z-10 flex w-full max-w-4xl flex-col gap-5 rounded-md bg-white p-4 shadow-sm md:p-6">
       <div>
         <h1 className="text-2xl font-bold">SSO settings</h1>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-Light-Slate">
           Configure a generic OpenID Connect provider here. Changes are saved to
           the file-backed auth config so you still have a manual recovery path.
         </p>
@@ -101,7 +101,7 @@ const SsoSettingsPanel = ({
             />
             <div>
               <p className="font-semibold">Enable SSO</p>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-Light-Slate">
                 Show the SSO login option on the manager page.
               </p>
             </div>
@@ -115,7 +115,7 @@ const SsoSettingsPanel = ({
             />
             <div>
               <p className="font-semibold">Allow automatic provisioning</p>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-Light-Slate">
                 Create and role-map manager accounts from the identity provider.
               </p>
             </div>
@@ -124,7 +124,7 @@ const SsoSettingsPanel = ({
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">
+            <label className="text-sm font-semibold text-Graphite">
               Discovery URL
             </label>
             <Input
@@ -136,7 +136,7 @@ const SsoSettingsPanel = ({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">
+            <label className="text-sm font-semibold text-Graphite">
               Client ID
             </label>
             <Input
@@ -148,7 +148,7 @@ const SsoSettingsPanel = ({
           </div>
 
           <div className="flex flex-col gap-2 md:col-span-2">
-            <label className="text-sm font-semibold text-gray-700">
+            <label className="text-sm font-semibold text-Graphite">
               Client secret
             </label>
             <Input
@@ -167,7 +167,7 @@ const SsoSettingsPanel = ({
               type="password"
               value={clientSecret}
             />
-            <div className="flex flex-col gap-2 text-sm text-gray-500 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-2 text-sm text-Light-Slate md:flex-row md:items-center md:justify-between">
               <span>
                 {config.hasClientSecret && !clearClientSecret
                   ? "A client secret is already stored."
@@ -191,7 +191,7 @@ const SsoSettingsPanel = ({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">Scopes</label>
+            <label className="text-sm font-semibold text-Graphite">Scopes</label>
             <Input
               className="w-full"
               onChange={(event) => setScopes(event.target.value)}
@@ -201,7 +201,7 @@ const SsoSettingsPanel = ({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">
+            <label className="text-sm font-semibold text-Graphite">
               Role claim path
             </label>
             <Input
@@ -213,7 +213,7 @@ const SsoSettingsPanel = ({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">
+            <label className="text-sm font-semibold text-Graphite">
               Admin role values
             </label>
             <Input
@@ -225,7 +225,7 @@ const SsoSettingsPanel = ({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">
+            <label className="text-sm font-semibold text-Graphite">
               Manager role values
             </label>
             <Input

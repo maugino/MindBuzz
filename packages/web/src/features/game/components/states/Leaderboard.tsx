@@ -1,4 +1,6 @@
 import type { ManagerStatusDataMap } from "@mindbuzz/common/types/game/status"
+import { useManagerStore } from "@mindbuzz/web/features/game/stores/manager"
+import { t } from "@mindbuzz/web/features/game/utils/translations"
 import { AnimatePresence, motion, useSpring, useTransform } from "motion/react"
 import { useEffect, useState } from "react"
 
@@ -24,6 +26,7 @@ const AnimatedPoints = ({ from, to }: { from: number; to: number }) => {
 }
 
 const Leaderboard = ({ data: { oldLeaderboard, leaderboard } }: Props) => {
+  const { lang } = useManagerStore()
   const [displayedLeaderboard, setDisplayedLeaderboard] =
     useState(oldLeaderboard)
   const [isAnimating, setIsAnimating] = useState(false)
@@ -45,7 +48,7 @@ const Leaderboard = ({ data: { oldLeaderboard, leaderboard } }: Props) => {
   return (
     <section className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-2">
       <h2 className="mb-6 text-5xl font-bold text-white drop-shadow-md">
-        Leaderboard
+        {t(lang, "leaderboard")}
       </h2>
       <div className="flex w-full flex-col gap-2">
         <AnimatePresence mode="popLayout">
@@ -72,7 +75,10 @@ const Leaderboard = ({ data: { oldLeaderboard, leaderboard } }: Props) => {
               }}
               className="bg-primary flex w-full justify-between rounded-md p-3 text-2xl font-bold text-white"
             >
-              <span className="drop-shadow-md">{username}</span>
+              <span className="drop-shadow-md">
+                {(leaderboard.find(u => u.id === id)?.emoji || displayedLeaderboard.find(u => u.id === id)?.emoji || "")} {username}
+                {(leaderboard.find(u => u.id === id)?.streak ?? 0) >= 3 ? " 🔥" : ""}
+              </span>
               {isAnimating ? (
                 <AnimatedPoints
                   from={oldLeaderboard.find((u) => u.id === id)?.points || 0}

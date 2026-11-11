@@ -10,14 +10,14 @@ const HistoryPanel = ({ history, onDownload }: Props) => (
   <div className="z-10 flex w-full max-w-5xl flex-col gap-5 rounded-md bg-white p-4 shadow-sm md:p-6">
     <div className="flex items-center justify-between gap-4">
       <h1 className="text-2xl font-bold">Run history</h1>
-      <span className="text-sm font-semibold text-gray-500">
+      <span className="text-sm font-semibold text-Light-Slate">
         {history.length} runs
       </span>
     </div>
 
     <div className="space-y-3">
       {history.length === 0 && (
-        <div className="rounded-md border border-dashed border-gray-300 p-4 text-center text-gray-500">
+        <div className="rounded-md border border-dashed border-Power-Gray p-4 text-center text-Light-Slate">
           No quiz runs recorded yet.
         </div>
       )}

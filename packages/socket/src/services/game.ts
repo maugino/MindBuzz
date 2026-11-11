@@ -23,6 +23,19 @@ const PLAYER_RECONNECT_GRACE_MS = 60_000
 const isCorrectAnswer = (selectedAnswerId: number, correctAnswerIds: number[]) =>
   correctAnswerIds.includes(selectedAnswerId)
 
+const RESULT_MESSAGES: Record<string, { nice: string; tooBad: string; waiting: string; waitingAnswer: string }> = {
+  English: { nice: "Nice!", tooBad: "Too bad", waiting: "Waiting for players", waitingAnswer: "Waiting for the players to answer" },
+  Italian: { nice: "Ottimo!", tooBad: "Peccato", waiting: "In attesa dei giocatori", waitingAnswer: "In attesa delle risposte" },
+  French: { nice: "Bravo !", tooBad: "Dommage", waiting: "En attente des joueurs", waitingAnswer: "En attente des réponses" },
+  Spanish: { nice: "¡Bien!", tooBad: "Qué lástima", waiting: "Esperando jugadores", waitingAnswer: "Esperando respuestas" },
+  German: { nice: "Super!", tooBad: "Schade", waiting: "Warte auf Spieler", waitingAnswer: "Warte auf Antworten" },
+}
+
+const getMsg = (language: string | undefined, key: keyof typeof RESULT_MESSAGES["English"]) => {
+  const lang = language && RESULT_MESSAGES[language] ? language : "English"
+  return RESULT_MESSAGES[lang][key]
+}
+
 class Game {
   io: Server
 
@@ -159,14 +172,12 @@ class Game {
     this.io.to(target).emit("game:status", statusData)
   }
 
-  join(socket: Socket, username: string) {
+  join(socket: Socket, username: string, emoji?: string) {
     const isAlreadyConnected = this.players.find(
       (p) => p.clientId === socket.handshake.auth.clientId,
     )
-
     if (isAlreadyConnected) {
-      socket.emit("game:errorMessage", "Player already connected")
-
+      this.takeOverPlayer(socket, isAlreadyConnected)
       return
     }
 
@@ -185,7 +196,9 @@ class Game {
       clientId: socket.handshake.auth.clientId,
       connected: true,
       username,
+      emoji: emoji || "🎮",
       points: 0,
+      streak: 0,
     }
 
     this.players.push(playerData)
@@ -258,6 +271,7 @@ class Game {
   }
 
   private reconnectManager(socket: Socket) {
+    console.log(`reconnectManager called: clientId match=${this.manager.clientId === socket.handshake.auth.clientId}, connected=${this.manager.connected}`)
     if (this.manager.clientId !== socket.handshake.auth.clientId) {
       socket.emit("game:reset", "Game is controlled from another session")
 
@@ -288,6 +302,11 @@ class Game {
     this.activateManagerControl(socket)
     registry.reactivateGame(this.gameId)
   }
+  stopGame() {
+    this.io.to(this.gameId).emit("game:reset", "Game stopped by manager")
+    this.io.socketsLeave(this.gameId)
+    registry.removeGame(this.gameId)
+  }
 
   private activateManagerControl(socket: Socket) {
     socket.join(this.gameId)
@@ -298,7 +317,7 @@ class Game {
     const status = this.managerStatus ||
       this.lastBroadcastStatus || {
         name: STATUS.WAIT,
-        data: { text: "Waiting for players" },
+        data: { text: getMsg(this.quizz.language, "waiting") },
       }
 
     socket.emit("manager:successReconnect", {
@@ -309,6 +328,7 @@ class Game {
       },
       status,
       players: this.players,
+      language: this.quizz.language || "English",
     })
     socket.emit("game:totalPlayers", this.players.length)
   }
@@ -321,18 +341,40 @@ class Game {
       return
     }
 
-    if (player.connected) {
-      socket.emit("game:reset", "Player already connected")
+    this.takeOverPlayer(socket, player)
+  }
 
-      return
-    }
+  private takeOverPlayer(socket: Socket, player: (typeof this.players)[number]) {
+    const oldSocketId = player.id
+    const isSameSocket = oldSocketId === socket.id
+    const oldSocket = !isSameSocket
+      ? this.io.sockets.sockets.get(oldSocketId)
+      : null
 
     socket.join(this.gameId)
     this.cancelPendingPlayerRemoval(player.clientId)
 
-    const oldSocketId = player.id
     player.id = socket.id
     player.connected = true
+
+    // Preserve an answer submitted before the socket was replaced.
+    this.round.playersAnswers.forEach((answer) => {
+      if (answer.playerId === oldSocketId) {
+        answer.playerId = socket.id
+      }
+    })
+
+    // Kick any stale/duplicate old connection for this player AFTER we've
+    // already repointed player.id at the new socket, so the old socket's
+    // own disconnect handler no-ops instead of re-marking this player as
+    // disconnected out from under the new session.
+    if (oldSocket) {
+      oldSocket.emit(
+        "game:reset",
+        "You reconnected from another device or tab",
+      )
+      oldSocket.disconnect(true)
+    }
 
     if (!this.started) {
       this.io.to(this.manager.id).emit("manager:removePlayer", oldSocketId)
@@ -342,7 +384,7 @@ class Game {
     const status = this.playerStatus.get(oldSocketId) ||
       this.lastBroadcastStatus || {
         name: STATUS.WAIT,
-        data: { text: "Waiting for players" },
+        data: { text: getMsg(this.quizz.language, "waiting") },
       }
 
     if (this.playerStatus.has(oldSocketId)) {
@@ -476,6 +518,8 @@ class Game {
       image: question.image,
       video: question.video,
       audio: question.audio ?? this.defaultAudio,
+        subtitles: question.subtitles,
+        language: this.quizz.language,
       time: question.time,
       totalPlayer: this.players.length,
     })
@@ -519,7 +563,8 @@ class Game {
 
         player.points += points
 
-        return { ...player, lastCorrect: isCorrect, lastPoints: points }
+          const streak = isCorrect ? (player.streak || 0) + 1 : 0
+          return { ...player, lastCorrect: isCorrect, lastPoints: points, streak }
       })
       .sort((a, b) => b.points - a.points)
 
@@ -559,7 +604,7 @@ class Game {
 
       this.sendStatus(player.id, STATUS.SHOW_RESULT, {
         correct: player.lastCorrect,
-        message: player.lastCorrect ? "Nice!" : "Too bad",
+        message: player.lastCorrect ? getMsg(this.quizz.language, "nice") : getMsg(this.quizz.language, "tooBad"),
         points: player.lastPoints,
         myPoints: player.points,
         rank,
@@ -607,7 +652,7 @@ class Game {
     })
 
     this.sendStatus(socket.id, STATUS.WAIT, {
-      text: "Waiting for the players to answer",
+      text: getMsg(this.quizz.language, "waitingAnswer"),
     })
 
     socket

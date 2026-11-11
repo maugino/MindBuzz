@@ -10,6 +10,8 @@ type Props = {
   onCreate: (_data: { username: string; password: string }) => void
   onResetPassword: (_data: { managerId: string; password: string }) => void
   onSetDisabled: (_data: { managerId: string; disabled: boolean }) => void
+  onDelete: (_managerId: string) => void
+  onRenameManager: (_data: { managerId: string; username: string }) => void
 }
 
 const ManagersPanel = ({
@@ -18,10 +20,13 @@ const ManagersPanel = ({
   onCreate,
   onResetPassword,
   onSetDisabled,
+  onDelete,
+  onRenameManager,
 }: Props) => {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [passwordDrafts, setPasswordDrafts] = useState<Record<string, string>>({})
+  const [usernameDrafts, setUsernameDrafts] = useState<Record<string, string>>({})
 
   const handleCreate = () => {
     const normalizedUsername = username.trim()
@@ -63,16 +68,16 @@ const ManagersPanel = ({
   return (
     <div className="z-10 flex w-full max-w-5xl flex-col gap-5 rounded-md bg-white p-4 shadow-sm md:p-6">
       <div>
-        <h1 className="text-2xl font-bold">Managers</h1>
-        <p className="text-sm text-gray-500">
+        <h1 className="text-2xl font-bold">Quizmasters</h1>
+        <p className="text-sm text-Light-Slate">
           Create and maintain manager accounts for this installation.
         </p>
       </div>
 
       <section className="rounded-md bg-gray-50 p-4">
         <div className="mb-3">
-          <h2 className="text-lg font-bold">Create manager</h2>
-          <p className="text-sm text-gray-500">
+          <h2 className="text-lg font-bold">Create Quizmaster</h2>
+          <p className="text-sm text-Light-Slate">
             New accounts created here have the `manager` role.
           </p>
         </div>
@@ -90,7 +95,7 @@ const ManagersPanel = ({
             placeholder="Temporary password"
           />
           <Button className="px-4" onClick={handleCreate} type="button">
-            Create manager
+            Create Quizmaster
           </Button>
         </div>
       </section>
@@ -106,27 +111,76 @@ const ManagersPanel = ({
             >
               <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-lg font-bold">{manager.username}</h2>
-                  <p className="text-sm text-gray-500">
+                  {usernameDrafts[manager.id] !== undefined ? (
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        className="rounded-sm p-1 text-lg font-bold outline-2 outline-Power-Gray"
+                        value={usernameDrafts[manager.id]}
+                        onChange={(e) => setUsernameDrafts((c) => ({ ...c, [manager.id]: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const val = usernameDrafts[manager.id]?.trim()
+                            if (val) onRenameManager({ managerId: manager.id, username: val })
+                            setUsernameDrafts((c) => { const n = { ...c }; delete n[manager.id]; return n })
+                          }
+                          if (e.key === "Escape") {
+                            setUsernameDrafts((c) => { const n = { ...c }; delete n[manager.id]; return n })
+                          }
+                        }}
+                        autoFocus
+                      />
+                      <Button type="button" className="px-2 py-1 text-sm" onClick={() => {
+                        const val = usernameDrafts[manager.id]?.trim()
+                        if (val) onRenameManager({ managerId: manager.id, username: val })
+                        setUsernameDrafts((c) => { const n = { ...c }; delete n[manager.id]; return n })
+                      }}>Save</Button>
+                      <Button type="button" className="bg-white px-2 py-1 text-sm !text-black" onClick={() => {
+                        setUsernameDrafts((c) => { const n = { ...c }; delete n[manager.id]; return n })
+                      }}>Cancel</Button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 items-center">
+                      <h2 className="text-lg font-bold">{manager.username}</h2>
+                      <button type="button" className="text-xs text-primary font-semibold hover:underline"
+                        onClick={() => setUsernameDrafts((c) => ({ ...c, [manager.id]: manager.username }))}>
+                        Edit
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-sm text-Light-Slate">
                     Role: {manager.role} | Status:{" "}
                     {manager.disabledAt ? "Disabled" : "Active"}
                   </p>
                 </div>
 
-                {!isCurrentManager && (
-                  <Button
-                    type="button"
-                    className={manager.disabledAt ? "px-4" : "bg-white px-4 !text-black"}
-                    onClick={() =>
-                      onSetDisabled({
-                        managerId: manager.id,
-                        disabled: !manager.disabledAt,
-                      })
-                    }
-                  >
-                    {manager.disabledAt ? "Enable" : "Disable"}
-                  </Button>
-                )}
+                  {!isCurrentManager && (
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        className={manager.disabledAt ? "px-4" : "bg-white px-4 !text-black"}
+                        onClick={() =>
+                          onSetDisabled({
+                            managerId: manager.id,
+                            disabled: !manager.disabledAt,
+                          })
+                        }
+                      >
+                        {manager.disabledAt ? "Enable" : "Disable"}
+                      </Button>
+                      <Button
+                        type="button"
+                        className="bg-Dark-Slate px-4"
+                        onClick={() => {
+                          if (window.confirm(`Delete quizmaster "${manager.username}"?`)) {
+                            onDelete(manager.id)
+                          }
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  )}
               </div>
 
               <div className="grid gap-3 md:grid-cols-[1fr_auto]">

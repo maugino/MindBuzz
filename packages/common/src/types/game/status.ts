@@ -26,6 +26,8 @@ export type CommonStatusDataMap = {
     image?: string
     video?: string
     audio?: string
+    subtitles?: Record<string, string>
+    language?: string
     time: number
     totalPlayer: number
   }

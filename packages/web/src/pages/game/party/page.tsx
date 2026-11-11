@@ -32,9 +32,18 @@ const PlayerGamePage = () => {
     }
 
     const attemptReconnect = () => {
-      if (!socket?.connected) {
-        reconnect()
+      if (!socket) {
+        return
       }
+
+      if (!socket.connected) {
+        reconnect()
+        return
+      }
+
+      // The browser may report the socket as connected after a phone wakes
+      // even though the game state is stale. Force a game-level resync.
+      socket.emit("player:reconnect", { gameId: gameIdParam })
     }
 
     const handleVisibilityChange = () => {

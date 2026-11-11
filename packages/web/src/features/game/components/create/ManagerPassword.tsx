@@ -59,7 +59,7 @@ const ManagerPassword = ({
       </Button>
       {showSsoButton && onSsoLogin && (
         <>
-          <div className="text-center text-sm font-semibold text-gray-500">or</div>
+          <div className="text-center text-sm font-semibold text-Light-Slate">or</div>
           <Button
             className="bg-white !text-black"
             disabled={isBusy}

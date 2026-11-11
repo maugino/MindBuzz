@@ -6,6 +6,7 @@ import {
   useEvent,
   useSocket,
 } from "@mindbuzz/web/features/game/contexts/socketProvider"
+import { useManagerStore } from "@mindbuzz/web/features/game/stores/manager"
 import { usePlayerStore } from "@mindbuzz/web/features/game/stores/player"
 import { useQuestionStore } from "@mindbuzz/web/features/game/stores/question"
 import { MANAGER_SKIP_BTN } from "@mindbuzz/web/features/game/utils/constants"
@@ -23,7 +24,9 @@ const GameWrapper = ({ children, statusName, onNext, manager }: Props) => {
   const { isConnected } = useSocket()
   const { player } = usePlayerStore()
   const { questionStates, setQuestionStates } = useQuestionStore()
+  const { inviteCode } = useManagerStore()
   const [isDisabled, setIsDisabled] = useState(false)
+  console.log("inviteCode from store:", inviteCode)
   const next = statusName ? MANAGER_SKIP_BTN[statusName] : null
 
   useEvent("game:updateQuestion", ({ current, total }) => {
@@ -74,6 +77,16 @@ const GameWrapper = ({ children, statusName, onNext, manager }: Props) => {
                 </div>
               )}
 
+              {manager && inviteCode && (
+                <div className="shadow-inset flex items-center gap-2 rounded-md bg-white px-3 py-2 text-base font-bold text-black sm:px-4 sm:text-lg">
+                  <span className="font-normal text-Light-Slate">Join:</span>
+                  <span>eno.qzz.io</span>
+                  <span className="text-gray-400">|</span>
+                  <span className="font-normal text-Light-Slate">PIN:</span>
+                  <span>{inviteCode}</span>
+                </div>
+              )}
+
               {manager && next && (
                 <Button
                   className={clsx("self-end bg-white px-4 !text-black", {
@@ -90,7 +103,7 @@ const GameWrapper = ({ children, statusName, onNext, manager }: Props) => {
 
             {!manager && (
               <div className="z-50 flex items-center justify-between gap-3 bg-white px-3 py-2 text-base font-bold text-white sm:px-4 sm:text-lg">
-                <p className="min-w-0 truncate text-gray-800">{player?.username}</p>
+                <p className="min-w-0 truncate text-gray-800">{player?.emoji} {player?.username}</p>
                 <div className="shrink-0 rounded-sm bg-gray-800 px-3 py-1 text-base sm:text-lg">
                   {player?.points}
                 </div>

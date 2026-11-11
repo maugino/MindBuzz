@@ -9,6 +9,7 @@ import { persist } from "zustand/middleware"
 type PlayerState = {
   username?: string
   points?: number
+  quizLanguage?: string
 }
 
 type PlayerStore<T> = {
@@ -19,7 +20,7 @@ type PlayerStore<T> = {
   setGameId: (_gameId: string | null) => void
 
   setPlayer: (_state: PlayerState) => void
-  login: (_gameId: string) => void
+  login: (_username: string, _emoji: string) => void
   join: (_username: string) => void
   updatePoints: (_points: number) => void
 
@@ -42,10 +43,14 @@ export const usePlayerStore = create<PlayerStore<StatusDataMap>>()(
       setGameId: (gameId) => set({ gameId }),
 
       setPlayer: (player: PlayerState) => set({ player }),
-      login: (username) =>
+      login: (username, emoji) =>
         set((state) => ({
-          player: { ...state.player, username },
+          player: { ...state.player, username, emoji },
         })),
+
+
+
+
 
       join: (gameId) => {
         set((state) => ({

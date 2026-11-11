@@ -20,7 +20,7 @@ const router = createBrowserRouter([
             element: <PlayerAuthPage />,
           },
           {
-            path: "/manager",
+            path: "/quizmaster",
             element: <AuthManagerPage />,
           },
         ],
@@ -30,7 +30,7 @@ const router = createBrowserRouter([
         element: <PlayerGamePage />,
       },
       {
-        path: "/party/manager/:gameId",
+        path: "/party/quizmaster/:gameId",
         element: <ManagerGamePage />,
       },
     ],

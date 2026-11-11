@@ -1,4 +1,5 @@
 import { STATUS } from "@mindbuzz/common/types/game/status"
+import { useEffect } from "react"
 import GameWrapper from "@mindbuzz/web/features/game/components/GameWrapper"
 import {
   useEvent,
@@ -29,7 +30,7 @@ const ManagerGamePage = () => {
   const navigate = useNavigate()
   const { gameId: gameIdParam }: { gameId?: string } = useParams()
   const { socket } = useSocket()
-  const { gameId, status, setGameId, setStatus, setPlayers, reset } =
+  const { gameId, status, setGameId, setStatus, setPlayers, setInviteCode, setLang, reset } =
     useManagerStore()
   const { setQuestionStates } = useQuestionStore()
 
@@ -47,16 +48,18 @@ const ManagerGamePage = () => {
 
   useEvent(
     "manager:successReconnect",
-    ({ gameId, status, players, currentQuestion }) => {
+    ({ gameId, status, players, currentQuestion, inviteCode }) => {
       setGameId(gameId)
       setStatus(status.name, status.data)
       setPlayers(players)
       setQuestionStates(currentQuestion)
+      if (inviteCode) setInviteCode(inviteCode)
+      if (language) setLang(language)
     },
   )
 
   useEvent("game:reset", (message) => {
-    navigate("/manager")
+    navigate("/quizmaster")
     reset()
     setQuestionStates(null)
     toast.error(message)
@@ -70,6 +73,17 @@ const ManagerGamePage = () => {
     toast.error(message)
   })
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space" || e.code === "ArrowRight" || e.code === "PageDown") {
+        e.preventDefault()
+        handleSkip()
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [status, gameId])
+
   const handleSkip = () => {
     if (!gameId || !status) {
       return
@@ -77,7 +91,7 @@ const ManagerGamePage = () => {
 
     if (status.name === STATUS.FINISHED) {
       socket?.emit("manager:endGame", { gameId })
-      navigate("/manager")
+      navigate("/quizmaster")
       reset()
       setQuestionStates(null)
 

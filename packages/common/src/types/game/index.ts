@@ -3,7 +3,9 @@ export type Player = {
   clientId: string
   connected: boolean
   username: string
+  emoji?: string
   points: number
+  streak?: number
 }
 
 export type Answer = {
@@ -17,6 +19,7 @@ export type QuizzQuestion = {
   image?: string
   video?: string
   audio?: string
+  subtitles?: Record<string, string>
   answers: string[]
   solutions: number[]
   cooldown: number
@@ -26,9 +29,11 @@ export type QuizzQuestion = {
 export type Quizz = {
   subject: string
   questions: QuizzQuestion[]
+  isPublic?: boolean
+  language?: string
 }
 
-export type QuizzWithId = Quizz & { id: string }
+export type QuizzWithId = Quizz & { id: string; ownedByCurrentManager?: boolean }
 
 export type ManagerRole = "admin" | "manager"
 

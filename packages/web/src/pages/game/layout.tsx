@@ -22,7 +22,7 @@ const GameLayoutWrapped = () => {
   }, [])
 
   return (
-    <div className="antialiased bg-secondary">
+    <div className="antialiased">
       <Outlet />
     </div>
   )

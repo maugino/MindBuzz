@@ -63,6 +63,26 @@ class Config {
     return getMediaPath()
   }
 
+  static listMedia(type?: string) {
+      const subfolderMap: Record<string, string> = {
+        image: "images",
+        video: "videos",
+        audio: "audio",
+        subtitle: "subtitles",
+      }
+      const subfolder = type ? (subfolderMap[type] || "") : ""
+      const dir = subfolder ? getMediaPath(subfolder) : getMediaPath()
+      if (!fs.existsSync(dir)) return []
+      const files = subfolder
+        ? fs.readdirSync(dir).map((f: string) => ({ filename: f, url: `/media/${subfolder}/${f}` }))
+        : ["images", "videos", "audio", "subtitles"].flatMap((sub: string) => {
+            const subDir = getMediaPath(sub)
+            if (!fs.existsSync(subDir)) return []
+            return fs.readdirSync(subDir).map((f: string) => ({ filename: f, url: `/media/${sub}/${f}` }))
+          })
+      return files.filter((f: { filename: string }) => /\.(mp4|mp3|webm|jpg|jpeg|png|gif|webp|svg|vtt)$/i.test(f.filename))
+    }
+
   static authConfigPath() {
     return getPath("auth.json")
   }
@@ -512,33 +532,40 @@ class Config {
   }
 
   static uploadMedia(filename: string, content: string) {
-    const normalizedFilename = filename.trim()
+      const normalizedFilename = filename.trim()
 
-    if (!normalizedFilename) {
-      throw new Error("Filename is required")
+      if (!normalizedFilename) {
+        throw new Error("Filename is required")
+      }
+
+      const safeFilename = normalizedFilename
+        .replace(/[^a-zA-Z0-9._-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+
+      if (!safeFilename) {
+        throw new Error("Invalid filename")
+      }
+
+      const ext = safeFilename.split(".").pop()?.toLowerCase() || ""
+      const subfolder = /^(mp4|webm)$/.test(ext) ? "videos"
+        : /^(mp3|wav|ogg)$/.test(ext) ? "audio"
+        : /^(jpg|jpeg|png|gif|webp|svg)$/.test(ext) ? "images"
+        : /^vtt$/.test(ext) ? "subtitles"
+        : ""
+
+      const targetDir = getMediaPath(subfolder)
+      const targetPath = require("path").join(targetDir, safeFilename)
+      const buffer = Buffer.from(content, "base64")
+
+      if (!buffer.length) {
+        throw new Error("Uploaded file is empty")
+      }
+
+      fs.mkdirSync(targetDir, { recursive: true })
+      fs.writeFileSync(targetPath, buffer)
+
+      return `/media/${subfolder}/${safeFilename}`
     }
-
-    const safeFilename = normalizedFilename
-      .replace(/[^a-zA-Z0-9._-]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-
-    if (!safeFilename) {
-      throw new Error("Invalid filename")
-    }
-
-    const targetPath = getMediaPath(safeFilename)
-    const buffer = Buffer.from(content, "base64")
-
-    if (!buffer.length) {
-      throw new Error("Uploaded file is empty")
-    }
-
-    fs.mkdirSync(getMediaPath(), { recursive: true })
-    fs.writeFileSync(targetPath, buffer)
-
-    return `/media/${safeFilename}`
   }
-}
 
-export default Config
-
+  export default Config

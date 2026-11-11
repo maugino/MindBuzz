@@ -6,12 +6,14 @@ import {
   useSocket,
 } from "@mindbuzz/web/features/game/contexts/socketProvider"
 import { usePlayerStore } from "@mindbuzz/web/features/game/stores/player"
+import { t } from "@mindbuzz/web/features/game/utils/translations"
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 
 const Room = () => {
   const { socket, isConnected } = useSocket()
-  const { join } = usePlayerStore()
+  const { join, setPlayer, player } = usePlayerStore()
+  // const lang = player?.quizLanguage
   const [invitation, setInvitation] = useState("")
   const [searchParams] = useSearchParams()
   const hasJoinedRef = useRef(false)
@@ -26,7 +28,8 @@ const Room = () => {
     }
   }
 
-  useEvent("game:successRoom", (gameId) => {
+  useEvent("game:successRoom", ({ gameId, language }: { gameId: string; language: string }) => {
+    setPlayer({ quizLanguage: language })
     join(gameId)
   })
 
@@ -46,7 +49,7 @@ const Room = () => {
       <Input
         onChange={(e) => setInvitation(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="PIN Code here"
+        placeholder={t(undefined, "pinPlaceholder")}
       />
       <Button onClick={handleJoin}>Submit</Button>
     </Form>

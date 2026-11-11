@@ -6,7 +6,7 @@ import type {
   Quizz,
   QuizzWithId,
 } from "@mindbuzz/common/types/game"
-import { usernameValidator } from "@mindbuzz/common/validators/auth"
+import { managerUsernameValidator } from "@mindbuzz/common/validators/auth"
 import Config from "@mindbuzz/socket/services/config"
 import Database from "@mindbuzz/socket/services/database"
 import History from "@mindbuzz/socket/services/history"
@@ -95,7 +95,7 @@ class AccountStore {
 
   private static normalizeUsername(username: string) {
     const normalized = username.trim()
-    const result = usernameValidator.safeParse(normalized)
+    const result = managerUsernameValidator.safeParse(normalized)
 
     if (!result.success) {
       throw new Error(result.error.issues[0].message)
@@ -479,26 +479,27 @@ class AccountStore {
   static listQuizzes(managerId: string) {
     const db = AccountStore.getDb()
     const rows = db.prepare(`
-      SELECT id, payload_json AS payloadJson
+      SELECT id, manager_id AS managerId, is_public AS isPublic, language, payload_json AS payloadJson
       FROM quizzes
-      WHERE manager_id = ?
+      WHERE manager_id = ? OR is_public = 1
       ORDER BY subject COLLATE NOCASE ASC
-    `).all(managerId) as Array<{ id: string; payloadJson: string }>
-
+    `).all(managerId) as Array<{ id: string; managerId: string; isPublic: number; language: string; payloadJson: string }>
     return rows.map((row) => ({
       id: row.id,
+      ownedByCurrentManager: row.managerId === managerId,
+      isPublic: row.isPublic === 1,
+      language: row.language || 'English',
       ...(JSON.parse(row.payloadJson) as Quizz),
-    })) as QuizzWithId[]
+    }))
   }
-
   static getQuizz(managerId: string, quizzId: string) {
     const db = AccountStore.getDb()
     const row = db.prepare(`
-      SELECT id, payload_json AS payloadJson
+      SELECT id, language, payload_json AS payloadJson
       FROM quizzes
-      WHERE manager_id = ? AND id = ?
+      WHERE (manager_id = ? OR is_public = 1) AND id = ?
     `).get(managerId, quizzId) as
-      | { id: string; payloadJson: string }
+      | { id: string; language: string; payloadJson: string }
       | undefined
 
     if (!row) {
@@ -507,6 +508,7 @@ class AccountStore {
 
     return {
       id: row.id,
+      language: row.language || 'English',
       ...(JSON.parse(row.payloadJson) as Quizz),
     } satisfies QuizzWithId
   }
@@ -527,57 +529,89 @@ class AccountStore {
     })
     const now = new Date().toISOString()
     const id = uuid()
-
     db.prepare(`
       INSERT INTO quizzes (
         id,
         manager_id,
         subject,
         payload_json,
+        is_public,
+        language,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       managerId,
       quizz.subject,
       JSON.stringify(quizz),
+      0,
+      'English',
       now,
       now,
     )
-
     return {
       id,
+      isPublic: false,
+      language: 'English',
+      ownedByCurrentManager: true,
       ...quizz,
     }
   }
-
   static updateQuizz(managerId: string, quizzId: string, quizz: Quizz) {
     const db = AccountStore.getDb()
     const normalizedQuizz = normalizeQuizz(quizz)
     const now = new Date().toISOString()
     const result = db.prepare(`
       UPDATE quizzes
-      SET subject = ?, payload_json = ?, updated_at = ?
+      SET subject = ?, payload_json = ?, is_public = ?, language = ?, updated_at = ?
       WHERE id = ? AND manager_id = ?
     `).run(
       normalizedQuizz.subject,
       JSON.stringify(normalizedQuizz),
+      quizz.isPublic ? 1 : 0,
+      quizz.language || 'English',
       now,
       quizzId,
       managerId,
     )
-
     if (result.changes === 0) {
       throw new Error("Quiz not found")
     }
-
     return {
       id: quizzId,
+      ownedByCurrentManager: true,
       ...normalizedQuizz,
+      isPublic: quizz.isPublic || false,
+      language: quizz.language || 'English',
     }
   }
 
+  static deleteManager(managerId: string) {
+    const db = AccountStore.getDb()
+    const result = db.prepare(`DELETE FROM managers WHERE id = ?`).run(managerId)
+    if (result.changes === 0) {
+      throw new Error("Manager not found")
+    }
+  }
+
+  static renameManager(managerId: string, username: string) {
+    const db = AccountStore.getDb()
+    const result = db.prepare(`UPDATE managers SET username = ? WHERE id = ?`).run(username, managerId)
+    if (result.changes === 0) {
+      throw new Error("Manager not found")
+    }
+  }
+
+  static toggleQuizzPublic(managerId: string, quizzId: string, isPublic: boolean) {
+    const db = AccountStore.getDb()
+    const result = db.prepare(`
+      UPDATE quizzes SET is_public = ? WHERE id = ? AND manager_id = ?
+    `).run(isPublic ? 1 : 0, quizzId, managerId)
+    if (result.changes === 0) {
+      throw new Error("Quiz not found")
+    }
+  }
   static deleteQuizz(managerId: string, quizzId: string) {
     const db = AccountStore.getDb()
     const result = db.prepare(`
@@ -589,6 +623,12 @@ class AccountStore {
       throw new Error("Quiz not found")
     }
   }
+  static deleteQuizzAsAdmin(quizzId: string) {
+    const db = AccountStore.getDb()
+    const result = db.prepare(`DELETE FROM quizzes WHERE id = ?`).run(quizzId)
+    if (result.changes === 0) {
+      throw new Error("Quiz not found")
+    }
+  }
 }
-
 export default AccountStore

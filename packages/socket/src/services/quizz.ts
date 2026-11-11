@@ -90,6 +90,7 @@ export const normalizeQuizz = (quizz: RawQuizz): Quizz => {
         image: normalizeOptionalAsset(question.image),
         video: normalizeOptionalAsset(question.video),
         audio: normalizeOptionalAsset(question.audio),
+          subtitles: question.subtitles,
       }
     }),
   }
