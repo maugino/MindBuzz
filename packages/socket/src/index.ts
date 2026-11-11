@@ -939,7 +939,9 @@ io.on("connection", (socket) => {
       return
     }
 
-    const player = game.players.find((item) => item.id === socket.id)
+    const player = game.players.find(
+      (item) => item.socketId === socket.id,
+    )
 
     if (!player) {
       return
@@ -947,7 +949,7 @@ io.on("connection", (socket) => {
 
     if (!game.started) {
       player.connected = false
-      game.schedulePlayerRemoval(player.id)
+      game.schedulePlayerRemoval(player.socketId)
       io.to(game.gameId).emit("game:totalPlayers", game.players.length)
 
       console.log(

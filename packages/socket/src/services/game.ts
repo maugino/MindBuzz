@@ -192,7 +192,8 @@ class Game {
     socket.join(this.gameId)
 
     const playerData = {
-      id: socket.id,
+      id: uuid(),
+      socketId: socket.id,
       clientId: socket.handshake.auth.clientId,
       connected: true,
       username,
@@ -223,11 +224,11 @@ class Game {
 
     this.cancelPendingPlayerRemoval(player.clientId)
     this.players = this.players.filter((p) => p.id !== playerId)
-    this.playerStatus.delete(playerId)
+    this.playerStatus.delete(player.socketId)
 
-    this.io.in(playerId).socketsLeave(this.gameId)
+    this.io.in(player.socketId).socketsLeave(this.gameId)
     this.io
-      .to(player.id)
+      .to(player.socketId)
       .emit("game:reset", "You have been kicked by the manager")
     this.io.to(this.manager.id).emit("manager:playerKicked", player.id)
 
@@ -345,7 +346,7 @@ class Game {
   }
 
   private takeOverPlayer(socket: Socket, player: (typeof this.players)[number]) {
-    const oldSocketId = player.id
+    const oldSocketId = player.socketId
     const isSameSocket = oldSocketId === socket.id
     const oldSocket = !isSameSocket
       ? this.io.sockets.sockets.get(oldSocketId)
@@ -354,18 +355,11 @@ class Game {
     socket.join(this.gameId)
     this.cancelPendingPlayerRemoval(player.clientId)
 
-    player.id = socket.id
+    player.socketId = socket.id
     player.connected = true
 
-    // Preserve an answer submitted before the socket was replaced.
-    this.round.playersAnswers.forEach((answer) => {
-      if (answer.playerId === oldSocketId) {
-        answer.playerId = socket.id
-      }
-    })
-
     // Kick any stale/duplicate old connection for this player AFTER we've
-    // already repointed player.id at the new socket, so the old socket's
+    // already repointed player.socketId at the new socket, so the old socket's
     // own disconnect handler no-ops instead of re-marking this player as
     // disconnected out from under the new session.
     if (oldSocket) {
@@ -377,7 +371,7 @@ class Game {
     }
 
     if (!this.started) {
-      this.io.to(this.manager.id).emit("manager:removePlayer", oldSocketId)
+      this.io.to(this.manager.id).emit("manager:removePlayer", player.id)
       this.io.to(this.manager.id).emit("manager:newPlayer", { ...player })
     }
 
@@ -602,7 +596,7 @@ class Game {
       const rank = index + 1
       const aheadPlayer = sortedPlayers[index - 1]
 
-      this.sendStatus(player.id, STATUS.SHOW_RESULT, {
+      this.sendStatus(player.socketId, STATUS.SHOW_RESULT, {
         correct: player.lastCorrect,
         message: player.lastCorrect ? getMsg(this.quizz.language, "nice") : getMsg(this.quizz.language, "tooBad"),
         points: player.lastPoints,
@@ -626,14 +620,16 @@ class Game {
     this.round.playersAnswers = []
   }
   selectAnswer(socket: Socket, answerId: number) {
-    const player = this.players.find((player) => player.id === socket.id)
+    const player = this.players.find(
+      (player) => player.socketId === socket.id,
+    )
     const question = this.quizz.questions[this.round.currentQuestion]
 
     if (!player) {
       return
     }
 
-    if (this.round.playersAnswers.find((p) => p.playerId === socket.id)) {
+    if (this.round.playersAnswers.find((p) => p.playerId === player.id)) {
       return
     }
 
@@ -754,8 +750,8 @@ class Game {
     this.manager.connected = false
   }
 
-  schedulePlayerRemoval(playerId: string) {
-    const player = this.players.find((p) => p.id === playerId)
+  schedulePlayerRemoval(socketId: string) {
+    const player = this.players.find((p) => p.socketId === socketId)
 
     if (!player || this.started) {
       return
@@ -775,7 +771,7 @@ class Game {
       this.players = this.players.filter(
         (p) => p.clientId !== player.clientId,
       )
-      this.playerStatus.delete(pendingPlayer.id)
+      this.playerStatus.delete(pendingPlayer.socketId)
       this.pendingPlayerRemovals.delete(player.clientId)
 
       this.io.to(this.manager.id).emit("manager:removePlayer", pendingPlayer.id)
@@ -818,7 +814,7 @@ class Game {
 
     disconnectedPlayers.forEach((player) => {
       this.cancelPendingPlayerRemoval(player.clientId)
-      this.playerStatus.delete(player.id)
+      this.playerStatus.delete(player.socketId)
       this.io.to(this.manager.id).emit("manager:removePlayer", player.id)
     })
 
