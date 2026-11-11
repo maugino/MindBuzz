@@ -834,17 +834,9 @@ io.on("connection", (socket) => {
   socket.on("player:reconnect", ({ gameId }) => {
     const clientId = socket.handshake.auth.clientId
 
-    console.log(
-      `Player reconnect requested: socketId=${socket.id}, clientId=${clientId}, gameId=${gameId}`,
-    )
-
     const game = registry.getPlayerGame(gameId, clientId)
 
     if (game) {
-      console.log(
-        `Player reconnect game found: socketId=${socket.id}, clientId=${clientId}, gameId=${gameId}`,
-      )
-
       game.reconnect(socket)
 
       return

@@ -5,7 +5,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "node esbuild.config.js",
     "start": "node dist/index.cjs",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "license": "ISC",
   "dependencies": {
@@ -22,7 +24,7 @@
     "eslint": "^9.39.4",
     "globals": "^17.4.0",
     "tsx": "^4.21.0",
-    "typescript-eslint": "^8.57.0"
+    "typescript-eslint": "^8.57.0",
+    "vitest": "^5.1.0"
   }
 }
-
