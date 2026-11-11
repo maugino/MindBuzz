@@ -1,4 +1,5 @@
 import GameWrapper from "@mindbuzz/web/features/game/components/GameWrapper"
+import PlayerConnectionStatus from "@mindbuzz/web/features/game/components/PlayerConnectionStatus"
 import {
   useEvent,
   useSocket,
@@ -96,9 +97,13 @@ const PlayerGamePage = () => {
       : null
 
   return (
-    <GameWrapper statusName={status?.name}>
-      {CurrentComponent && <CurrentComponent data={status!.data as never} />}
-    </GameWrapper>
+    <>
+      <PlayerConnectionStatus />
+
+      <GameWrapper statusName={status?.name}>
+        {CurrentComponent && <CurrentComponent data={status!.data as never} />}
+      </GameWrapper>
+    </>
   )
 }
 
