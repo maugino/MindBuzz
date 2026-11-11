@@ -102,7 +102,10 @@ export interface ServerToClientEvents {
 
 export interface ClientToServerEvents {
   // Manager actions
-  "game:create": (_quizzId: string) => void
+  "game:create": (_data: {
+    quizzId: string
+    answersOnly?: boolean
+  }) => void
   "manager:getBootstrapState": () => void
   "manager:createInitialAdmin": (_data: {
     username: string

@@ -128,7 +128,7 @@ const QuizzEditor = ({
       subject: quizz.subject,
       isPublic: quizz.isPublic || false,
       language: quizz.language || "English",
-      questions: quizz.questions.map((q) => ({
+        questions: quizz.questions.map((q) => ({
         ...q,
         image: q.image ?? "",
         video: q.video ?? "",

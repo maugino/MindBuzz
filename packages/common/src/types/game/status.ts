@@ -30,6 +30,7 @@ export type CommonStatusDataMap = {
     language?: string
     time: number
     totalPlayer: number
+    answersOnly: boolean
   }
   SHOW_RESULT: {
     correct: boolean

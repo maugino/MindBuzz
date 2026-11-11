@@ -316,8 +316,14 @@ const ManagerAuthPage = () => {
     socket?.emit("manager:createInitialAdmin", data)
   }
 
-  const handleCreate = (quizzId: string) => {
-    socket?.emit("game:create", quizzId)
+  const handleCreate = (
+    quizzId: string,
+    answersOnly: boolean,
+  ) => {
+    socket?.emit("game:create", {
+      quizzId,
+      answersOnly,
+    })
   }
 
   const handleCreateQuizz = (subject: string) => {

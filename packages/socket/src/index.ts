@@ -573,7 +573,7 @@ io.on("connection", (socket) => {
     }
   })
 
-  socket.on("game:create", (quizzId) => {
+  socket.on("game:create", ({ quizzId, answersOnly = false }) => {
     const manager = requireAuthenticatedManager(socket)
 
     if (!manager) {
@@ -606,6 +606,7 @@ io.on("connection", (socket) => {
       manager,
       quizz,
       AccountStore.getManagerSettings(manager.id),
+      answersOnly,
     )
 
     registry.addGame(game)

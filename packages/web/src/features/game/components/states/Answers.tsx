@@ -22,7 +22,19 @@ type Props = {
 }
 
 const Answers = ({
-  data: { question, answers, multipleCorrect, image, audio, video, time, totalPlayer, subtitles, language },
+  data: {
+    question,
+    answers,
+    multipleCorrect,
+    image,
+    audio,
+    video,
+    time,
+    totalPlayer,
+    subtitles,
+    language,
+    answersOnly,
+  },
 }: Props) => {
   const videoRef = useRef<HTMLVideoElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -32,6 +44,7 @@ const Answers = ({
   const { gameId }: { gameId?: string } = useParams()
   const { socket } = useSocket()
   const { player } = usePlayerStore()
+  const showAnswersOnly = Boolean(player) && answersOnly
 
   const [cooldown, setCooldown] = useState(time)
   const [totalAnswer, setTotalAnswer] = useState(0)
@@ -137,10 +150,17 @@ const Answers = ({
 
   return (
     <div className="flex h-full flex-1 flex-col justify-between pb-3 sm:pb-4">
-      <div className="mx-auto inline-flex h-full w-full max-w-7xl flex-1 flex-col items-center justify-center gap-4 px-3 sm:gap-5 sm:px-4">
-        <h2 className="text-center text-2xl font-bold text-white drop-shadow-lg sm:text-3xl md:text-4xl lg:text-5xl">
-          {question}
-        </h2>
+      <div
+        className={clsx(
+          "mx-auto w-full max-w-7xl flex-col items-center justify-center gap-4 px-3 sm:gap-5 sm:px-4",
+          showAnswersOnly ? "hidden" : "inline-flex h-full flex-1",
+        )}
+      >
+        {!showAnswersOnly && (
+          <>
+            <h2 className="text-center text-2xl font-bold text-white drop-shadow-lg sm:text-3xl md:text-4xl lg:text-5xl">
+              {question}
+            </h2>
 
         {multipleCorrect && (
           <p className="rounded-full bg-black/40 px-4 py-2 text-sm font-semibold text-white sm:text-base">
@@ -195,10 +215,21 @@ const Answers = ({
             className="mb-2 max-h-60 w-full max-w-3xl rounded-md object-contain sm:max-h-100"
           />
         )}
+          </>
+        )}
       </div>
 
-      <div>
-        <div className="mx-auto mb-3 flex w-full max-w-7xl justify-between gap-2 px-3 text-base font-bold text-white sm:mb-4 sm:px-4 sm:text-lg md:text-xl">
+      <div
+        className={clsx(
+          showAnswersOnly && "flex flex-1 flex-col",
+        )}
+      >
+        <div
+          className={clsx(
+            "mx-auto flex w-full max-w-7xl justify-between gap-2 px-3 text-base font-bold text-white sm:px-4 sm:text-lg md:text-xl",
+            showAnswersOnly ? "mb-1 shrink-0" : "mb-3 sm:mb-4",
+          )}
+        >
           <div className="flex min-w-0 flex-col items-center rounded-full bg-black/40 px-3 py-1 text-base font-bold sm:px-4 sm:text-lg">
             <span className="translate-y-1 text-sm">Time</span>
             <span>{cooldown}</span>
@@ -211,11 +242,21 @@ const Answers = ({
           </div>
         </div>
 
-        <div className="mx-auto mb-1 grid w-full max-w-7xl grid-cols-2 gap-2 px-3 text-lg font-bold text-white sm:mb-4 sm:px-4 md:text-xl">
+        <div
+          className={clsx(
+            "mx-auto grid w-full max-w-7xl grid-cols-2 px-3 font-bold text-white sm:px-4",
+            showAnswersOnly
+              ? "flex-1 auto-rows-fr gap-3 py-3 text-xl sm:gap-4 sm:py-4 md:text-2xl"
+              : "mb-1 gap-2 text-lg sm:mb-4 md:text-xl",
+          )}
+        >
           {answers.map((answer, key) => (
             <AnswerButton
               key={key}
-              className={clsx(ANSWERS_COLORS[key])}
+              className={clsx(
+                ANSWERS_COLORS[key],
+                showAnswersOnly && "h-full min-h-28 text-xl sm:text-2xl",
+              )}
               icon={ANSWERS_ICONS[key]}
               onClick={handleAnswer(key)}
             >

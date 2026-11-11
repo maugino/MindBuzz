@@ -7,7 +7,7 @@ import toast from "react-hot-toast"
 
 type Props = {
   quizzList: QuizzWithId[]
-  onSelect: (_id: string) => void
+  onSelect: (_id: string, _answersOnly: boolean) => void
   onCreate: (_subject: string) => void
   onDelete: (_id: string) => void
   onEdit: (_id: string) => void
@@ -39,6 +39,7 @@ const SelectQuizz = ({
   onExport,
 }: Props) => {
   const [selected, setSelected] = useState<string | null>(null)
+  const [answersOnly, setAnswersOnly] = useState(false)
   const [subject, setSubject] = useState("")
   const [search, setSearch] = useState("")
   const [languageFilter, setLanguageFilter] = useState("All")
@@ -67,7 +68,7 @@ const SelectQuizz = ({
       toast.error("Please select a quizz")
       return
     }
-    onSelect(selected)
+    onSelect(selected, answersOnly)
   }
 
   const handleCreate = () => {
@@ -344,6 +345,55 @@ const SelectQuizz = ({
           📥 Import quiz
         </Button>
       </div>
+      {selected && (
+        <div className="rounded-md border border-Power-Gray bg-gray-50 p-4">
+          <p className="mb-1 font-semibold text-Graphite">
+            Player display
+          </p>
+          <p className="mb-3 text-sm text-Light-Slate">
+            Choose what participants see on their own devices for this session.
+          </p>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setAnswersOnly(false)}
+              className={clsx(
+                "rounded-md border p-3 text-left transition-colors",
+                !answersOnly
+                  ? "border-primary bg-red-50"
+                  : "border-Power-Gray bg-white",
+              )}
+            >
+              <span className="block font-semibold">
+                📱 Full player view
+              </span>
+              <span className="mt-1 block text-xs text-Light-Slate">
+                Players see the question, media and answer choices.
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAnswersOnly(true)}
+              className={clsx(
+                "rounded-md border p-3 text-left transition-colors",
+                answersOnly
+                  ? "border-primary bg-red-50"
+                  : "border-Power-Gray bg-white",
+              )}
+            >
+              <span className="block font-semibold">
+                🔢 Answers only
+              </span>
+              <span className="mt-1 block text-xs text-Light-Slate">
+                Players use their device as a response pad. The question and media stay on the presenter screen.
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
       <Button onClick={handleSubmit}>Start selected quiz</Button>
     </div>
   )

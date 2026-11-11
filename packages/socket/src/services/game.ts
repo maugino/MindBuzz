@@ -50,6 +50,7 @@ class Game {
   inviteCode: string
   started: boolean
   defaultAudio?: string
+  answersOnly: boolean
 
   lastBroadcastStatus: { name: Status; data: StatusDataMap[Status] } | null =
     null
@@ -85,6 +86,7 @@ class Game {
     manager: ManagerSession,
     quizz: QuizzWithId,
     settings: ManagerSettings,
+    answersOnly = false,
   ) {
     if (!io) {
       throw new Error("Socket server not initialized")
@@ -102,6 +104,7 @@ class Game {
     this.inviteCode = ""
     this.started = false
     this.defaultAudio = settings.defaultAudio
+    this.answersOnly = answersOnly
 
     this.lastBroadcastStatus = null
     this.managerStatus = null
@@ -491,11 +494,27 @@ class Game {
       return
     }
 
-    this.broadcastStatus(STATUS.SHOW_QUESTION, {
-      question: question.question,
-      image: question.image,
-      cooldown: question.cooldown,
-    })
+    if (this.answersOnly) {
+      // Show the full question only on the presenter screen.
+      this.sendStatus(this.manager.id, STATUS.SHOW_QUESTION, {
+        question: question.question,
+        image: question.image,
+        cooldown: question.cooldown,
+      })
+
+      // Player devices remain in a neutral waiting state until answers open.
+      this.players.forEach((player) => {
+        this.sendStatus(player.socketId, STATUS.WAIT, {
+          text: "Get ready to answer",
+        })
+      })
+    } else {
+      this.broadcastStatus(STATUS.SHOW_QUESTION, {
+        question: question.question,
+        image: question.image,
+        cooldown: question.cooldown,
+      })
+    }
 
     await sleep(question.cooldown)
 
@@ -516,6 +535,7 @@ class Game {
         language: this.quizz.language,
       time: question.time,
       totalPlayer: this.players.length,
+      answersOnly: this.answersOnly,
     })
 
     await this.startCooldown(question.time)
