@@ -1,6 +1,7 @@
 import type { ManagerStatusDataMap } from "@mindbuzz/common/types/game/status"
 import Button from "@mindbuzz/web/features/game/components/Button"
 import { useSocket } from "@mindbuzz/web/features/game/contexts/socketProvider"
+import { usePlayerStore } from "@mindbuzz/web/features/game/stores/player"
 import {
   SFX_PODIUM_FIRST,
   SFX_PODIUM_SECOND,
@@ -66,6 +67,7 @@ const usePodiumAnimation = (topLength: number) => {
 const Podium = ({ data: { subject, top, runId } }: Props) => {
   const apparition = usePodiumAnimation(top.length)
   const { socket } = useSocket()
+  const { player } = usePlayerStore()
   const { width, height } = useScreenSize()
 
   return (
@@ -88,12 +90,14 @@ const Podium = ({ data: { subject, top, runId } }: Props) => {
           <h2 className="anim-show text-center text-3xl font-bold text-white drop-shadow-lg md:text-4xl lg:text-5xl">
             {subject}
           </h2>
-          <Button
-            className="bg-white px-4 !text-black"
-            onClick={() => socket?.emit("manager:downloadHistory", { runId })}
-          >
-            Download results
-          </Button>
+          {!player && (
+            <Button
+              className="bg-white px-4 !text-black"
+              onClick={() => socket?.emit("manager:downloadHistory", { runId })}
+            >
+              Download results
+            </Button>
+          )}
         </div>
 
         <div

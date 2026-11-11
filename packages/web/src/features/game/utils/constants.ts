@@ -42,6 +42,7 @@ export const GAME_STATE_COMPONENTS = {
   [STATUS.SHOW_START]: Start,
   [STATUS.SHOW_RESULT]: Result,
   [STATUS.SHOW_PREPARED]: Prepared,
+  [STATUS.FINISHED]: Podium,
 }
 
 export const GAME_STATE_COMPONENTS_MANAGER = {
@@ -49,7 +50,6 @@ export const GAME_STATE_COMPONENTS_MANAGER = {
   [STATUS.SHOW_ROOM]: Room,
   [STATUS.SHOW_RESPONSES]: Responses,
   [STATUS.SHOW_LEADERBOARD]: Leaderboard,
-  [STATUS.FINISHED]: Podium,
 }
 
 export const SFX_ANSWERS_MUSIC = "/sounds/answersMusic.mp3"
